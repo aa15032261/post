@@ -13,9 +13,11 @@ import (
 )
 
 const MetadataFileName = "postdata_metadata.json"
+const MetadataTmpName = "postdata_metadata.json.tmp"
 
 func SaveMetadata(dir string, v *shared.PostMetadata) error {
 	err := os.MkdirAll(dir, shared.OwnerReadWriteExec)
+
 	if err != nil && !os.IsExist(err) {
 		return fmt.Errorf("dir creation failure: %w", err)
 	}
@@ -26,7 +28,17 @@ func SaveMetadata(dir string, v *shared.PostMetadata) error {
 	}
 
 	if err := atomic.WriteFile(filepath.Join(dir, MetadataFileName), bytes.NewBuffer(data)); err != nil {
-		return fmt.Errorf("write to disk failure: %w", err)
+		fmt.Printf("write to disk failure: %s\n", err)
+
+		// write to tmp file
+		if err := os.WriteFile(filepath.Join(dir, MetadataTmpName), []byte(data), 0o600); err != nil {
+			return fmt.Errorf("write to disk failure: %w", err)
+		}
+
+		// rename tmp file
+		if err := os.Rename(filepath.Join(dir, MetadataTmpName), filepath.Join(dir, MetadataFileName)); err != nil {
+			return fmt.Errorf("write to disk failure: %w", err)
+		}
 	}
 
 	return nil
